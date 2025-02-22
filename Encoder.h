@@ -21,7 +21,7 @@ public:
 
 	virtual bool Open() = 0;
 	virtual void Close();
-	virtual bool isOpen() const;
+	virtual bool IsOpen() const;
 
 	virtual bool EncodeFrame(const AVFrame* frame, AVPacket* packet) = 0;
 
