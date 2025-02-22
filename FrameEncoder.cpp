@@ -39,8 +39,8 @@ bool FrameEncoder::Open() {
     codecContext->bit_rate = bitrate;
     codecContext->width = width;
     codecContext->height = height;
-    codecContext->time_base = (AVRational){ 1, frameRate };
-    codecContext->framerate = (AVRational){ frameRate, 1 };
+    codecContext->time_base = av_make_q(1, frameRate);
+    codecContext->framerate = av_make_q(frameRate,1);
     codecContext->gop_size = 10;
     codecContext->max_b_frames = 1;
     codecContext->pix_fmt = static_cast<AVPixelFormat>(pixelFormat);
