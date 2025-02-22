@@ -1,3 +1,4 @@
+//Encoder.h
 #pragma once
 #include "FFmpegSystem.h"
 #include <string>
@@ -76,4 +77,4 @@ public:
 	int FrameRate() const;
 	void SetPixelFormat(int pixelFormat);
 	int PixelFormat() const;
-};
+};	

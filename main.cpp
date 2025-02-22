@@ -1,3 +1,4 @@
+//Main.cpp
 #include "ScreenCapture.h"
 #include <vector>
 #include <cstdint>

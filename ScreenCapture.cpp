@@ -1,3 +1,4 @@
+//ScreenCapture.cpp
 #include "ScreenCapture.h"
 #include <iostream>
 #include <wincodec.h>

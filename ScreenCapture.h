@@ -1,3 +1,4 @@
+//ScreenCapture.h
 #pragma once
 #include <vector>
 #include <ctype.h>
