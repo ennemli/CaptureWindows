@@ -1,19 +1,33 @@
 #pragma once
-#include <vector>
+#include "FFmpegSystem.h"
+#include <string>
+#include <memory>
 
-struct AudioConfigurationEncoding {
-	std::vector<uint8_t> data;
-};
+struct AVCodecContext;
+struct AVFrame;
+struct AVPacket;
 
-struct FrameConfigurationEncoding {
-	int width;
-	int height;
-	std::vector<uint8_t> data;
-};
-//SimpleEncoder
-class Encoder {
+class Enocder {
+protected:
+	FFmpegInitializer ffmpegInit;
+
+	AVCodecContext* codecContext;
+	bool isOpen;
+	std::string codecName;
+	int bitrate;
 public:
-	bool InitializeEncoder();
-	std::vector<uint8_t> Encode(const AudioConfigurationEncoding& configs);
-	std::vector<uint8_t> Encode(const FrameConfigurationEncoding& configs);
+	Enocder();
+	virtual ~Enocder();
+
+	virtual bool Open() = 0;
+	virtual void Close();
+	virtual bool isOpen() const;
+
+	virtual bool EncodeFrame(const AVFrame* frame, AVPacket* packet) = 0;
+
+	void setBitRate(int bitrate);
+	int getBitRate() const;
+	void setCodecName(const std::string& codecName);
+	std::string getCodecName() const;
+
 };
