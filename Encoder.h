@@ -7,7 +7,7 @@ struct AVCodecContext;
 struct AVFrame;
 struct AVPacket;
 
-class Enocder {
+class Encoder {
 protected:
 	FFmpegInitializer ffmpegInit;
 
@@ -16,8 +16,8 @@ protected:
 	std::string codecName;
 	int bitrate;
 public:
-	Enocder();
-	virtual ~Enocder();
+	Encoder();
+	virtual ~Encoder();
 
 	virtual bool Open() = 0;
 	virtual void Close();
@@ -25,9 +25,9 @@ public:
 
 	virtual bool EncodeFrame(const AVFrame* frame, AVPacket* packet) = 0;
 
-	void setBitRate(int bitrate);
-	int getBitRate() const;
-	void setCodecName(const std::string& codecName);
-	std::string getCodecName() const;
+	void SetBitRate(int bitrate);
+	int BitRate() const;
+	void SetCodecName(const std::string& codecName);
+	std::string CodecName() const;
 
 };
