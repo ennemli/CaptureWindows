@@ -28,11 +28,11 @@ bool Encoder::IsOpen() const {
     return isOpen;
 }
 
-void Encoder::SetBitrate(int newBitrate) {
+void Encoder::SetBitRate(int newBitrate) {
     bitrate = newBitrate;
 }
 
-int Encoder::GetBitrate() const {
+int Encoder::BitRate() const {
     return bitrate;
 }
 
@@ -40,6 +40,6 @@ void Encoder::SetCodecName(const std::string& name) {
     codecName = name;
 }
 
-std::string Encoder::GetCodecName() const {
+std::string Encoder::CodecName() const {
     return codecName;
 }
