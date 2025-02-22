@@ -11,7 +11,6 @@ struct AVPacket;
 class Encoder {
 protected:
 	FFmpegInitializer ffmpegInit;
-
 	AVCodecContext* codecContext;
 	bool isOpen;
 	std::string codecName;
