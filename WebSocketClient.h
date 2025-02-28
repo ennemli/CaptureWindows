@@ -1,4 +1,6 @@
+//WebSocketClient.h
 #pragma once
+#include <boost/beast/core.hpp>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <boost/beast/websocket.hpp>
@@ -15,9 +17,17 @@ private:
 	std::string m_host;
 	std::string m_port;
 	std::string m_path;
+	std::function<void(std::string)> m_onMessage;
+	beast::flat_buffer m_f_buffer;
+	std::atomic<bool> m_isConnected ;
+	net::io_context m_ioc;
 public:
-	WebSocketClient(std::string host, std::string port, std::string path) :m_host(std::move(host)), m_port(std::move(port)), m_path(std::move(path));
+	WebSocketClient(net::io_context& ioc,std::string host, std::string port, std::string path) :m_ioc(ioc),m_isConnected(false), m_host(std::move(host)), m_port(std::move(port)), m_path(std::move(path)) = default;
+	~WebSocketClient();
 	void Connect(std::function<void(std::string)> onMessage);
 	void Send(std::string message);
+	void disconnect();
+private:
+	void read();
 
 };
