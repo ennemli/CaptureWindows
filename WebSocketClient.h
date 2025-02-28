@@ -22,7 +22,7 @@ private:
 	std::atomic<bool> m_isConnected ;
 	net::io_context m_ioc;
 public:
-	WebSocketClient(net::io_context& ioc,std::string host, std::string port, std::string path) :m_ioc(ioc),m_isConnected(false), m_host(std::move(host)), m_port(std::move(port)), m_path(std::move(path)) = default;
+	WebSocketClient(net::io_context& ioc, std::string host, std::string port, std::string path);
 	~WebSocketClient();
 	void Connect(std::function<void(std::string)> onMessage);
 	void Send(std::string message);
