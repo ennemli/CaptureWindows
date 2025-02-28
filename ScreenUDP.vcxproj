@@ -130,15 +130,23 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AudioEncoder.cpp" />
     <ClCompile Include="AudioStreamCapture.cpp" />
+    <ClCompile Include="Encoder.cpp" />
     <ClCompile Include="FFmpegSystem.cpp" />
+    <ClCompile Include="FrameEncoder.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ScreenCapture.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AudioStreamCapture.h" />
+    <ClInclude Include="Encoder.h" />
     <ClInclude Include="FFmpegSystem.h" />
     <ClInclude Include="ScreenCapture.h" />
+    <ClInclude Include="WebSocketClient.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".gitignore" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
