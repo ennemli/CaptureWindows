@@ -25,7 +25,7 @@ public:
 	WebSocketClient(net::io_context& ioc, std::string host, std::string port, std::string path);
 	~WebSocketClient();
 	void Connect(std::function<void(std::string)> onMessage);
-	void Send(std::string message);
+	void Send(const std::string& message);
 	void Disconnect();
 private:
 	void Read();
