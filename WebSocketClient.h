@@ -89,10 +89,11 @@ private:
     std::string m_path;
 
     ConnectionState m_connectionState;
+    MessageStatus m_MessagecurrentStatus;
 
     MessageCallback m_onMessage;
     StateChangeCallback m_onStateChange;
-
+    
     // Message queue with status tracking
     std::queue<std::pair<QueuedMessage, MessageStatusCallback>> m_messageQueue;
     std::mutex m_queueMutex;

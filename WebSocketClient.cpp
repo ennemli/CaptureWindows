@@ -8,7 +8,8 @@ WebSocketClient::WebSocketClient(net::io_context& ioc, std::string host, std::st
     m_connectionState(ConnectionState::DISCONNECTED),
     m_host(std::move(host)),
     m_port(std::move(port)),
-    m_path(std::move(path)) {
+    m_path(std::move(path)), 
+    m_MessagecurrentStatus(MessageStatus::QUEUED){
 }
 
 WebSocketClient::~WebSocketClient() {
@@ -45,7 +46,7 @@ void WebSocketClient::Connect(MessageCallback onMessage, StateChangeCallback onS
 
         // Update state
         SetConnectionState(ConnectionState::CONNECTED);
-
+        
         // Start reading
         Read();
     }
@@ -59,7 +60,8 @@ void WebSocketClient::Send(const std::string& message, MessageStatusCallback onS
     // Check if the connection is open
     if (!IsConnected()) {
         if (onStatus) {
-            onStatus(message, MessageStatus::CANCELLED);
+            m_MessagecurrentStatus = MessageStatus::CANCELLED;
+            onStatus(message, m_MessagecurrentStatus);
         }
         return;
     }
@@ -78,6 +80,9 @@ void WebSocketClient::Send(const std::string& message, MessageStatusCallback onS
 }
 
 void WebSocketClient::DoSend() {
+    if (m_MessagecurrentStatus==MessageStatus::SENDING) {
+        return;
+    }
     // Check if there are messages to send
     std::pair<QueuedMessage, MessageStatusCallback> currentMsg;
     {
@@ -86,21 +91,23 @@ void WebSocketClient::DoSend() {
             return;
         }
         currentMsg = m_messageQueue.front();
-
         // Update message status
-        currentMsg.first.status = MessageStatus::SENDING;
+        m_MessagecurrentStatus = MessageStatus::SENDING;
+
+        currentMsg.first.status = m_MessagecurrentStatus;
+
         if (currentMsg.second) {
-            currentMsg.second(currentMsg.first.data, MessageStatus::SENDING);
+            currentMsg.second(currentMsg.first.data, m_MessagecurrentStatus);
         }
 
     }
-
+    auto self = shared_from_this();
     // Send the message
     m_ws->async_write(
         net::buffer(currentMsg.first.data),
         beast::bind_front_handler(
             &WebSocketClient::OnWrite,
-            shared_from_this()
+           self
         )
     );
 }
@@ -121,8 +128,9 @@ void WebSocketClient::OnWrite(beast::error_code ec, std::size_t bytes_transferre
 
         // Update message status
         if (currentMsg.second) {
-            currentMsg.first.status = MessageStatus::FAILED;
-            currentMsg.second(currentMsg.first.data, MessageStatus::FAILED);
+            m_MessagecurrentStatus = MessageStatus::FAILED;
+            currentMsg.first.status = m_MessagecurrentStatus;
+            currentMsg.second(currentMsg.first.data, m_MessagecurrentStatus);
         }
 
         SetConnectionState(ConnectionState::CONNECTION_ERROR);
@@ -133,8 +141,9 @@ void WebSocketClient::OnWrite(beast::error_code ec, std::size_t bytes_transferre
 
     // Update message status
     if (currentMsg.second) {
-        currentMsg.first.status = MessageStatus::SENT;
-        currentMsg.second(currentMsg.first.data, MessageStatus::SENT);
+        m_MessagecurrentStatus = MessageStatus::SENT;
+        currentMsg.first.status = m_MessagecurrentStatus;
+        currentMsg.second(currentMsg.first.data, m_MessagecurrentStatus);
     }
 
     // Check if there are more messages to send
@@ -164,6 +173,8 @@ void WebSocketClient::Disconnect() {
         while (!m_messageQueue.empty()) {
             auto& msg = m_messageQueue.front();
             if (msg.second) {
+                m_MessagecurrentStatus = MessageStatus::CANCELLED;
+
                 msg.second(msg.first.data, MessageStatus::CANCELLED);
             }
             m_messageQueue.pop();
