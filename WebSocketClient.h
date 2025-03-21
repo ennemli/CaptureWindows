@@ -50,7 +50,7 @@ public:
         std::string data;
         MessageType type;
         MessageStatus status;
-        QueuedMessage():status(MessageStatus::QUEUED), type(MessageType::TEXT){}
+        QueuedMessage(): type(MessageType::TEXT), status(MessageStatus::QUEUED) {}
         QueuedMessage(std::string d, MessageType t = MessageType::TEXT)
             : data(std::move(d)), type(t), status(MessageStatus::QUEUED) {
         }
@@ -74,16 +74,9 @@ public:
     bool IsConnected() const; // Convenience method
 
 private:
-    void Read();
-    void DoSend();
-    void OnWrite(beast::error_code ec, std::size_t bytes_transferred);
-    void SetConnectionState(ConnectionState newState);
+   
 
     net::io_context& m_ioc;
-    net::strand<net::io_context::executor_type> m_strand;
-    std::unique_ptr<websocket::stream<tcp::socket>> m_ws;
-    beast::flat_buffer m_f_buffer;
-
     std::string m_host;
     std::string m_port;
     std::string m_path;
@@ -93,10 +86,22 @@ private:
 
     MessageCallback m_onMessage;
     StateChangeCallback m_onStateChange;
+
+    net::strand<net::io_context::executor_type> m_strand;
+    std::unique_ptr<websocket::stream<tcp::socket>> m_ws;
+    beast::flat_buffer m_f_buffer;
+
+  
+
     
     // Message queue with status tracking
     std::queue<std::pair<QueuedMessage, MessageStatusCallback>> m_messageQueue;
     std::mutex m_queueMutex;
+
+    void Read();
+    void DoSend();
+    void OnWrite(beast::error_code ec, std::size_t bytes_transferred);
+    void SetConnectionState(ConnectionState newState);
 };
 
 // Utility function to convert enum to string (for logging/debugging)

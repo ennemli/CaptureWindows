@@ -4,12 +4,13 @@
 
 WebSocketClient::WebSocketClient(net::io_context& ioc, std::string host, std::string port, std::string path)
     : m_ioc(ioc),
-    m_strand(net::make_strand(ioc.get_executor())),
-    m_connectionState(ConnectionState::DISCONNECTED),
     m_host(std::move(host)),
     m_port(std::move(port)),
-    m_path(std::move(path)), 
-    m_MessagecurrentStatus(MessageStatus::QUEUED){
+    m_path(std::move(path)),
+    m_connectionState(ConnectionState::DISCONNECTED),
+    m_MessagecurrentStatus(MessageStatus::QUEUED), 
+    m_strand(net::make_strand(ioc.get_executor()))
+{
 }
 
 WebSocketClient::~WebSocketClient() {
