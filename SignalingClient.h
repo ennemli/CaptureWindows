@@ -120,6 +120,7 @@ private:
 				std::cerr << "Failed to serialize session description to string" << std::endl;
 				return;
 			}
+			std::cout << "Offer SDP: " << sdp << "\n";
 
 			// First send answer to peer, before setting local description
 			// This ensures we don't have race conditions with ICE candidates
