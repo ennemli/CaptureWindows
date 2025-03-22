@@ -4,15 +4,16 @@
 #include <api/media_stream_interface.h>
 #include <absl/types/optional.h>
 #include "ScreenCapture.h"
+#include "AudioStreamCapture.h"
 #include <memory>
 #include <iostream>
 #include <rtc_base/synchronization/mutex.h>
-
+#include <unordered_map>
 class CaptureSource {
 public:
     ~CaptureSource();
-    void StartCapture();
-    void StopCapture();
+    virtual void StartCapture();
+    virtual void StopCapture();
 protected:
     virtual void CaptureLoop() = 0;
     std::unique_ptr<rtc::Thread> capture_thread_ = rtc::Thread::Thread::Create();
@@ -212,4 +213,198 @@ private:
 
     std::string track_id_;
     VideoCaptureSource* video_track_source;
+};
+
+
+class AudioBroadcaster : public webrtc::AudioTrackSinkInterface {
+public:
+    void AddSink(webrtc::AudioTrackSinkInterface* sink)  {
+        webrtc::MutexLock lock(&mutex_);
+        sinks_[sink] = sink;
+    }
+
+    void RemoveSink(webrtc::AudioTrackSinkInterface* sink)  {
+        webrtc::MutexLock lock(&mutex_);
+        sinks_.erase(sink);
+    }
+
+    void OnData(const void* audio_data,
+        int bits_per_sample,
+        int sample_rate,
+        size_t number_of_channels,
+        size_t number_of_frames,
+        std::optional<int64_t>) override{
+
+        webrtc::MutexLock lock(&mutex_);
+        for (const auto& [_, sink] : sinks_) {
+            sink->OnData(audio_data, bits_per_sample, 
+                sample_rate, number_of_channels, number_of_frames);
+        }
+    }
+
+private:
+    webrtc::Mutex mutex_;
+    std::unordered_map<webrtc::AudioTrackSinkInterface*, webrtc::AudioTrackSinkInterface*> sinks_;
+};
+
+
+// AudioSourceInterface is a reference counted source used for AudioTracks.
+// The same source can be used by multiple AudioTracks.
+class  AudioCaptureSource :public CaptureSource, public webrtc::AudioSourceInterface {
+public:
+    // TODO(deadbeef): Makes all the interfaces pure virtual after they're
+    // implemented in chromium.
+
+    // Sets the volume of the source. `volume` is in  the range of [0, 10].
+    // TODO(tommi): This method should be on the track and ideally volume should
+    // be applied in the track in a way that does not affect clones of the track.
+    AudioCaptureSource();
+    ~AudioCaptureSource();
+    void SetVolume(double /* volume */) override {}
+
+    // Registers/unregisters observers to the audio source.
+    void RegisterAudioObserver(AudioObserver* /* observer */) override {}
+    void UnregisterAudioObserver(AudioObserver* /* observer */) override {}
+
+    // TODO(tommi): Make pure virtual.
+    void AddSink(webrtc::AudioTrackSinkInterface*  sink ) override{
+		m_audio_broadcaster->AddSink(sink);
+    }
+    void RemoveSink(webrtc::AudioTrackSinkInterface*  sink ) override {
+		m_audio_broadcaster->RemoveSink(sink);
+    }
+
+    // Returns options for the AudioSource.
+    // (for some of the settings this approach is broken, e.g. setting
+    // audio network adaptation on the source is the wrong layer of abstraction).
+    //const cricket::AudioOptions options() const  {};
+	
+     // Live or ended. A track will never be live again after becoming ended.
+    webrtc::MediaSourceInterface::SourceState state() const override {
+        return webrtc::MediaSourceInterface::SourceState::kLive;
+    }
+
+    // Indicates if the source is remote.
+    bool remote() const override {
+        return false;
+    }
+
+    void RegisterObserver(webrtc::ObserverInterface* observer) override {
+        // Implement observer registration
+    }
+
+    void UnregisterObserver(webrtc::ObserverInterface* observer) override {
+        // Implement observer unregistration
+    }
+
+    void AddRef() const override { ++ref_count_; }
+
+    webrtc::RefCountReleaseStatus Release()const override {
+        int count = --ref_count_;
+        if (count == 0) {
+            delete this;
+            return webrtc::RefCountReleaseStatus::kDroppedLastRef;
+        }
+        return webrtc::RefCountReleaseStatus::kOtherRefsRemained;
+    }
+    
+    
+    void StartCapture() override;
+	void StopCapture() override;
+
+protected:
+	void CaptureLoop() override;
+private:
+
+    AudioBroadcaster* m_audio_broadcaster;
+	AudioStreamCapture* m_audio_stream_capture;
+    mutable std::atomic<int> ref_count_ = 0;
+
+};
+
+
+class AudioCaptureTrack : public webrtc::AudioTrackInterface {
+public:
+    AudioCaptureTrack(std::string track_id):
+        enabled_(true), track_id_(std::move(track_id)), 
+        m_audio_source(new AudioCaptureSource){
+		m_audio_source->AddRef();
+    }
+    ~AudioCaptureTrack() noexcept override {
+		m_audio_source->Release();
+    }
+    // TODO(deadbeef): Figure out if the following interface should be const or
+    // not.
+    webrtc::AudioSourceInterface* GetSource() const override {
+        return m_audio_source;
+    };
+
+    // Add/Remove a sink that will receive the audio data from the track.
+    void AddSink(webrtc::AudioTrackSinkInterface* sink) override {
+		m_audio_source->AddSink(sink);
+    };
+    virtual void RemoveSink(webrtc::AudioTrackSinkInterface* sink) override {
+		m_audio_source->RemoveSink(sink);
+    };
+
+    // Get the signal level from the audio track.
+    // Return true on success, otherwise false.
+    // TODO(deadbeef): Change the interface to int GetSignalLevel() and pure
+    // virtual after it's implemented in chromium.
+    bool GetSignalLevel(int* level) override {
+        return false;
+    };
+
+    // Get the audio processor used by the audio track. Return null if the track
+    // does not have any processor.
+    // TODO(deadbeef): Make the interface pure virtual.
+    rtc::scoped_refptr<webrtc::AudioProcessorInterface> GetAudioProcessor() override{
+        return nullptr;
+    };
+
+    std::string kind() const override {
+        return kVideoKind;
+    }
+
+    // Track identifier.
+    std::string id() const override { return track_id_; }
+
+    // A disabled track will produce silence (if audio) or black frames (if
+    // video). Can be disabled and re-enabled.
+    bool enabled() const override { return enabled_; }
+    bool set_enabled(bool enable) override {
+        enabled_ = enable;
+        return enabled_;
+    }
+
+    // Live or ended. A track will never be live again after becoming ended.
+    TrackState state() const override {
+        return kLive;
+    };
+
+    void RegisterObserver(webrtc::ObserverInterface* observer) override {
+
+    }
+
+    void UnregisterObserver(webrtc::ObserverInterface* observer) override {
+    }
+
+    void AddRef() const override { ++ref_count_; }
+
+    webrtc::RefCountReleaseStatus Release()const override {
+        int count = --ref_count_;
+        if (count == 0) {
+            delete this;
+            return webrtc::RefCountReleaseStatus::kDroppedLastRef;
+        }
+        return webrtc::RefCountReleaseStatus::kOtherRefsRemained;
+    }
+
+
+protected:
+    mutable std::atomic<int> ref_count_ = 0;
+    bool enabled_;
+
+    std::string track_id_;
+    webrtc::AudioSourceInterface* m_audio_source;
 };

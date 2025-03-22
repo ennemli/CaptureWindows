@@ -25,8 +25,6 @@ private:
 	static std::mutex mtx;
 	static ScreenCapture* instance;
 
-	mutable std::atomic<int> ref_count{0};
-
 	ComPtr<ID3D11Device> m_device = nullptr;
 	ComPtr<ID3D11DeviceContext> m_context = nullptr;
 	ComPtr<IDXGIOutputDuplication> m_duplication = nullptr;

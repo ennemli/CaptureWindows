@@ -86,3 +86,51 @@ void VideoCaptureSource::CaptureLoop() {
           
         }
 }
+
+AudioCaptureSource::AudioCaptureSource() : 
+    m_audio_stream_capture(AudioStreamCapture::GetInstance()) {
+	StartCapture();
+}
+AudioCaptureSource::~AudioCaptureSource() {
+	StopCapture();
+    delete m_audio_broadcaster;
+    delete m_audio_stream_capture;
+}
+
+void AudioCaptureSource::StartCapture() {
+	if (!m_audio_stream_capture) {
+		std::cerr << "No Audio Stream Capturer available" << std::endl;
+		return;
+	}
+	m_audio_broadcaster = new AudioBroadcaster();
+	m_audio_stream_capture->StartStream();
+	capture_thread_->Start();
+	capture_thread_->PostTask([this]() {
+		webrtc::MutexLock lock(&mutex_);
+		CaptureLoop();
+		});
+}
+
+void AudioCaptureSource::StopCapture() {
+	if (m_audio_stream_capture) {
+		m_audio_stream_capture->StopStream();
+	}
+	if (capture_thread_) {
+		capture_thread_->Stop();
+		capture_thread_.reset();
+	}
+}
+
+void AudioCaptureSource::CaptureLoop() {
+	while (running_) {
+		std::unique_ptr<AudioData> audio_data = m_audio_stream_capture->CaptureAudio();
+		if (!audio_data) {
+			std::cerr << "Failed to capture audio data" << std::endl;
+			continue;
+		}
+		m_audio_broadcaster->OnData(audio_data->audio_data,
+            audio_data->bits_per_sample,audio_data->sample_rate,
+            audio_data->number_of_channels,audio_data->number_of_frames,0);
+		rtc::Thread::Current()->SleepMs(10);
+	}
+}
