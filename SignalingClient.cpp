@@ -216,7 +216,7 @@ void SignalingClient::SendOffer(IdType consumer_id) {
         return;
     }
     m_consumers.insert({ consumer_id,peer_connection.value() });
-    webrtc::BitrateSettings bitrate_settings;
+   /* webrtc::BitrateSettings bitrate_settings;
 
     // Set initial bitrate constraints
     bitrate_settings.start_bitrate_bps = 1000000;  // 1 Mbps starting bitrate
@@ -224,25 +224,35 @@ void SignalingClient::SendOffer(IdType consumer_id) {
     bitrate_settings.min_bitrate_bps = 300000;     // 300 Kbps minimum
 
 	peer_connection.value()->SetBitrate(bitrate_settings);
+    */
     // Add video track with transceiver BEFORE setting remote description
     try {
-        std::string track_id = "video_track_" + std::to_string(consumer_id);
+
+
+        std::string video_id = "video_track_" + std::to_string(consumer_id);
+        std::string audio_id = "audio_track_" + std::to_string(consumer_id);
+
         std::string stream_id = "stream_" + std::to_string(consumer_id);
 
-        webrtc::scoped_refptr<VideoCaptureTrack> video_track
-        (new rtc::RefCountedObject<VideoCaptureTrack>(track_id));
-
-        // Create transceiver with sendonly direction
-        webrtc::RtpTransceiverInit init;
-        init.direction = webrtc::RtpTransceiverDirection::kSendOnly;
-        init.stream_ids = { stream_id };
-
-        auto transceiver_result = peer_connection.value()->AddTransceiver(video_track, init);
-        if (!transceiver_result.ok()) {
-            std::cerr << "Failed to add video transceiver: " << transceiver_result.error().message() << std::endl;
+        webrtc::scoped_refptr<webrtc::VideoTrackInterface> video_track
+        (new rtc::RefCountedObject<VideoCaptureTrack>(video_id));
+        webrtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track
+        (new rtc::RefCountedObject<AudioCaptureTrack>(audio_id));
+        webrtc::RTCErrorOr<webrtc::scoped_refptr<webrtc::RtpSenderInterface>>	rtp_sender =
+            peer_connection.value()->AddTrack(video_track, { stream_id });
+        if (!rtp_sender.ok()) {
+            std::cerr << "Failed to add video track to peer connection: " << rtp_sender.error().message() << std::endl;
         }
         else {
-            std::cout << "Video transceiver added successfully for consumer: " << consumer_id << std::endl;
+            std::cout << "Added video track " << video_id << " to peer connection" << std::endl;
+        }
+        rtp_sender = peer_connection.value()->AddTrack(audio_track, { stream_id });
+        if (!rtp_sender.ok()) {
+            std::cerr << "Failed to add audio track to peer connection: " << rtp_sender.error().message() << std::endl;
+
+        }
+        else {
+            std::cout << "Added audio track " << audio_id << " to peer connection" << std::endl;
         }
     }
     catch (const std::exception& e) {

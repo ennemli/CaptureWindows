@@ -172,6 +172,7 @@ NOMINMAX
     <ClCompile Include="WebSocketClient.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AudioData.h" />
     <ClInclude Include="AudioStreamCapture.h" />
     <ClInclude Include="CaptureSource.h" />
     <ClInclude Include="ScreenCapture.h" />
