@@ -12,17 +12,22 @@ using Microsoft::WRL::ComPtr;
 
 class AudioStreamCapture {
 private:
+    AudioStreamCapture() {
+
+    }
+
     static std::mutex mtx;
     static AudioStreamCapture* instance;
-    bool Initialize();
-    AudioStreamCapture() {}
+    static bool started_;
 
-protected:
+    bool Initialize();
+
     ComPtr<IMMDeviceEnumerator> m_deviceEnumerator = nullptr;
     ComPtr<IMMDevice> m_device = nullptr;
     ComPtr<IAudioClient> m_audioClient = nullptr;
     ComPtr<IAudioCaptureClient> m_captureClient = nullptr;
     WAVEFORMATEX* m_waveFormat = nullptr;
+    
 
 public:
     ~AudioStreamCapture();
@@ -42,7 +47,21 @@ public:
         }
         return instance;
     }
+
     void StopStream();
     void StartStream();
-    std::unique_ptr<AudioData> CaptureAudio();
+	static bool Started();
+
+    void CaptureAudio(std::vector<BYTE>& data,
+        int* bits_per_sample,
+        int* sample_rate,
+        size_t* number_of_channels,
+        size_t* number_of_frames);
+    HRESULT  ReleaseBuffer(UINT32 number_of_frames) {
+        if (!m_captureClient ||!Started()) {
+            throw std::runtime_error("Capture Client is not initialized or audio stream has not started.");
+        }
+        return m_captureClient->ReleaseBuffer(number_of_frames);
+    }
+
 };
