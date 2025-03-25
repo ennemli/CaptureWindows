@@ -60,7 +60,13 @@ int main() {
         std::cerr << "Failed to create PeerConnectionFactory" << std::endl;
         return 1;
     }
+    cricket::AudioOptions options;
+    options.echo_cancellation = false;
+    options.auto_gain_control = false;
+    options.noise_suppression = false;
+    options.highpass_filter = false;
 
+    peer_connection_factory->CreateAudioSource(options);
     webrtc::scoped_refptr<SignalingClient> signaling_client(new webrtc::RefCountedObject< SignalingClient>(ioc, "localhost", "3000", "/?role=streamer"));
 
     signaling_client->SetPeerConnectionFactory(peer_connection_factory);

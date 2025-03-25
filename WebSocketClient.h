@@ -1,13 +1,12 @@
 // WebSocketClient.h
 #pragma once
-
+#include <queue>
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/asio/io_context.hpp>
 #include <functional>
 #include <string>
-#include <queue>
 #include <mutex>
 #include <memory>
 
@@ -47,12 +46,12 @@ public:
 
     // Struct to represent a message in the queue with its status
     struct QueuedMessage {
-        std::string data;
+        std::shared_ptr<std::string> data;
         MessageType type;
         MessageStatus status;
         QueuedMessage(): type(MessageType::TEXT), status(MessageStatus::QUEUED) {}
         QueuedMessage(std::string d, MessageType t = MessageType::TEXT)
-            : data(std::move(d)), type(t), status(MessageStatus::QUEUED) {
+            : data(std::make_shared<std::string>(d)), type(t), status(MessageStatus::QUEUED) {
         }
     };
 

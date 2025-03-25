@@ -9,16 +9,16 @@ SignalingClient::SignalingClient(net::io_context& ioc,
     m_serverURL(serverUrl),
     m_serverPort(serverPort),
     m_serverPath(serverPath) {
-
-    webrtc::PeerConnectionInterface::IceServer ice_server1;
+    
+    /*webrtc::PeerConnectionInterface::IceServer ice_server1;
     ice_server1.uri = "stun:stun.l.google.com:19302";
     webrtc::PeerConnectionInterface::IceServer ice_server2;
     ice_server2.uri = "stun:stun1.l.google.com:19302";
     config.servers.push_back(ice_server1);
-    config.servers.push_back(ice_server2);
+    config.servers.push_back(ice_server2);*/
     // Enable CPU adaptation for video quality
     config.set_cpu_adaptation(true);
-
+    //increase send time history
     // Configure for lower latency
     config.set_dscp(true);
     // Create WebSocket client
@@ -216,7 +216,9 @@ void SignalingClient::SendOffer(IdType consumer_id) {
         return;
     }
     m_consumers.insert({ consumer_id,peer_connection.value() });
-   /* webrtc::BitrateSettings bitrate_settings;
+  
+
+    webrtc::BitrateSettings bitrate_settings;
 
     // Set initial bitrate constraints
     bitrate_settings.start_bitrate_bps = 1000000;  // 1 Mbps starting bitrate
@@ -224,7 +226,7 @@ void SignalingClient::SendOffer(IdType consumer_id) {
     bitrate_settings.min_bitrate_bps = 300000;     // 300 Kbps minimum
 
 	peer_connection.value()->SetBitrate(bitrate_settings);
-    */
+    
     // Add video track with transceiver BEFORE setting remote description
     try {
 
@@ -234,10 +236,10 @@ void SignalingClient::SendOffer(IdType consumer_id) {
 
         std::string stream_id = "stream_" + std::to_string(consumer_id);
 
+        
         webrtc::scoped_refptr<webrtc::VideoTrackInterface> video_track
         (new rtc::RefCountedObject<VideoCaptureTrack>(video_id));
-        webrtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track
-        (new rtc::RefCountedObject<AudioCaptureTrack>(audio_id));
+       
         webrtc::RTCErrorOr<webrtc::scoped_refptr<webrtc::RtpSenderInterface>>	rtp_sender =
             peer_connection.value()->AddTrack(video_track, { stream_id });
         if (!rtp_sender.ok()) {
@@ -246,7 +248,9 @@ void SignalingClient::SendOffer(IdType consumer_id) {
         else {
             std::cout << "Added video track " << video_id << " to peer connection" << std::endl;
         }
-        rtp_sender = peer_connection.value()->AddTrack(audio_track, { stream_id });
+        webrtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track
+        (new rtc::RefCountedObject<AudioCaptureTrack>(audio_id));
+    rtp_sender = peer_connection.value()->AddTrack(audio_track, { stream_id });
         if (!rtp_sender.ok()) {
             std::cerr << "Failed to add audio track to peer connection: " << rtp_sender.error().message() << std::endl;
 
