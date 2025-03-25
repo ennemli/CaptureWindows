@@ -32,7 +32,7 @@ protected:
 class VideoCaptureSource :public CaptureSource,public webrtc::VideoTrackSourceInterface {
 public:
     VideoCaptureSource();
-    ~VideoCaptureSource() noexcept = default;
+    ~VideoCaptureSource();
 
     void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
         const rtc::VideoSinkWants& wants) override {
@@ -216,11 +216,11 @@ private:
 };
 
 
-class AudioBroadcaster : public webrtc::AudioTrackSinkInterface {
+class AudioBroadcaster : public webrtc::AudioTrackSinkInterface,public webrtc::RefCountInterface {
 public:
     void AddSink(webrtc::AudioTrackSinkInterface* sink)  {
         webrtc::MutexLock lock(&mutex_);
-        sinks_[sink] = sink;
+        sinks_.insert({ sink,sink });
     }
 
     void RemoveSink(webrtc::AudioTrackSinkInterface* sink)  {
@@ -233,18 +233,31 @@ public:
         int sample_rate,
         size_t number_of_channels,
         size_t number_of_frames,
-        std::optional<int64_t>) override{
+        std::optional<int64_t> timestamp) override{
 
         webrtc::MutexLock lock(&mutex_);
         for (const auto& [_, sink] : sinks_) {
             sink->OnData(audio_data, bits_per_sample, 
-                sample_rate, number_of_channels, number_of_frames);
+                sample_rate, number_of_channels, number_of_frames, timestamp);
         }
+    }
+    void AddRef() const override { ++ref_count_; }
+
+    webrtc::RefCountReleaseStatus Release()const override {
+        int count = --ref_count_;
+        if (count == 0) {
+            delete this;
+            return webrtc::RefCountReleaseStatus::kDroppedLastRef;
+        }
+        return webrtc::RefCountReleaseStatus::kOtherRefsRemained;
     }
 
 private:
     webrtc::Mutex mutex_;
-    std::unordered_map<webrtc::AudioTrackSinkInterface*, webrtc::AudioTrackSinkInterface*> sinks_;
+    std::unordered_map<webrtc::AudioTrackSinkInterface*, 
+       webrtc::AudioTrackSinkInterface*> sinks_;
+    mutable std::atomic<int> ref_count_ = 0;
+
 };
 
 
@@ -316,7 +329,7 @@ protected:
 	void CaptureLoop() override;
 private:
 
-    AudioBroadcaster* m_audio_broadcaster;
+    webrtc::scoped_refptr<AudioBroadcaster> m_audio_broadcaster;
 	AudioStreamCapture* m_audio_stream_capture;
     mutable std::atomic<int> ref_count_ = 0;
 
@@ -363,7 +376,7 @@ public:
     };
 
     std::string kind() const override {
-        return kVideoKind;
+        return kAudioKind;
     }
 
     // Track identifier.
