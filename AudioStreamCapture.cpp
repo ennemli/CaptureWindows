@@ -8,8 +8,10 @@
 #define REFTIMES_PER_SEC  100000 // 10Ms
 
 AudioStreamCapture* AudioStreamCapture::instance = nullptr;
-std::mutex AudioStreamCapture::mtx;
+std::mutex AudioStreamCapture::inst_mtx;
+std::mutex AudioStreamCapture::started_mtx;
 bool AudioStreamCapture::started_ = false;
+std::atomic<int> AudioStreamCapture::instance_count = 0;
 
 AudioStreamCapture::~AudioStreamCapture() {
     if (m_captureClient) {
@@ -126,17 +128,22 @@ bool AudioStreamCapture::Initialize() {
     return true;
 }
 void AudioStreamCapture::StartStream() {
-    // Start the audio stream
-    if (!m_audioClient) {
-        std::cerr << "Audio client not initialized." << std::endl;
-        return;
+    std::lock_guard<std::mutex> lock(AudioStreamCapture::started_mtx);
+    if (!AudioStreamCapture::started_) {
+        AudioStreamCapture::started_ = true;
+        // Start the audio stream
+        if (!m_audioClient) {
+            std::cerr << "Audio client not initialized." << std::endl;
+            return;
+        }
+        HRESULT hr = m_audioClient->Start();
+        if (FAILED(hr)) {
+            throw std::runtime_error("Failed to start audio client: " + std::to_string(hr));
+            return;
+        }
     }
-    HRESULT hr = m_audioClient->Start();
-    if (FAILED(hr)) {
-        throw std::runtime_error("Failed to start audio client: " + std::to_string(hr));
-        return;
-    }
-    AudioStreamCapture::started_ = true;
+    ++AudioStreamCapture::instance_count;
+
 }
 
 void AudioStreamCapture::StopStream() {
@@ -150,11 +157,14 @@ void AudioStreamCapture::StopStream() {
         throw std::runtime_error("Failed to stop audio client: " + std::to_string(hr));
         return;
     }
-    AudioStreamCapture::started_ = false;
+    std::lock_guard<std::mutex> lock(AudioStreamCapture::started_mtx);
+    if (--AudioStreamCapture::instance_count==0) {
+        AudioStreamCapture::started_ = false;
+    }
 }
 
 bool AudioStreamCapture::Started(){
-    
+    std::lock_guard<std::mutex> lock(started_mtx);
     return AudioStreamCapture::started_;
 }
 void AudioStreamCapture::CaptureAudio(std::vector<BYTE>& data,

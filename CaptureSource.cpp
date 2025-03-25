@@ -106,9 +106,7 @@ void AudioCaptureSource::StartCapture() {
 		return;
 	}
     webrtc::MutexLock lock(&mutex_);
-    if (!m_audio_stream_capture->Started()) {
-        m_audio_stream_capture->StartStream();
-    }
+    m_audio_stream_capture->StartStream();
 
     CaptureSource::StartCapture();
 }
@@ -122,8 +120,11 @@ void AudioCaptureSource::StopCapture() {
 }
 
 void AudioCaptureSource::CaptureLoop() {
-
-    while (running_) {
+    if (!m_audio_stream_capture) {
+        throw std::runtime_error("No Audio Stream Capturer available");
+        return;
+    }
+    while (running_&& m_audio_stream_capture->Started()) {
         try {
             std::vector<BYTE> bytes;
             int bits_per_sample, sample_rate;

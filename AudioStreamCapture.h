@@ -16,9 +16,11 @@ private:
 
     }
 
-    static std::mutex mtx;
+    static std::mutex inst_mtx;
     static AudioStreamCapture* instance;
+    static std::mutex started_mtx;
     static bool started_;
+    static std::atomic<int> instance_count;
 
     bool Initialize();
 
@@ -36,7 +38,7 @@ public:
 
     static AudioStreamCapture* GetInstance() {
         if (!instance) {
-            std::lock_guard<std::mutex> lock(mtx);
+            std::lock_guard<std::mutex> lock(AudioStreamCapture::inst_mtx);
             if (!instance) {
                 instance = new AudioStreamCapture();
                 if (!instance->Initialize()) {
